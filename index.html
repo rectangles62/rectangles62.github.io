@@ -43,6 +43,52 @@
     </script>
 
     <style>
+        /* Responsive top bar */
+        .topbar {
+            gap: 12px;
+            min-width: 0;
+        }
+        .topbar-brand {
+            min-width: 0;
+        }
+        .topbar-title {
+            white-space: nowrap;
+        }
+        .topbar-contact {
+            min-width: 0;
+        }
+        .topbar-email {
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-width: 640px) {
+            .topbar {
+                padding: 10px 12px;
+                align-items: flex-start;
+                flex-wrap: wrap;
+            }
+            .topbar-brand {
+                gap: 8px;
+            }
+            .topbar-title {
+                font-size: 16px;
+                letter-spacing: 0.12em;
+            }
+            .topbar-contact {
+                width: 100%;
+                padding-left: 32px;
+                font-size: 11px;
+                line-height: 1.4;
+            }
+            .topbar-contact i {
+                flex-shrink: 0;
+            }
+            .topbar-email {
+                min-width: 0;
+                overflow-wrap: anywhere;
+            }
+        }
+
         /* Prevent scrollbars and lock layout to viewport */
         html, body {
             height: 100%;
@@ -75,21 +121,21 @@
     <div class="fixed inset-0 grid-pattern pointer-events-none z-0"></div>
 
     <!-- HEADER BAR -->
-    <header class="relative z-20 px-4 sm:px-6 py-3 border-b border-white/10 glass-panel flex items-center justify-between">
+    <header class="topbar relative z-20 px-4 sm:px-6 py-3 border-b border-white/10 glass-panel flex items-center justify-between">
         <!-- Logo & Title -->
-        <div class="flex items-center gap-3">
+        <div class="topbar-brand flex items-center gap-3">
             <div class="w-6 h-6 border-2 border-brand-accent bg-brand-accent/20 flex items-center justify-center">
                 <div class="w-2 h-2 bg-brand-accent"></div>
             </div>
-            <span class="font-heading font-extrabold tracking-widest text-xl text-white">
+            <span class="topbar-title font-heading font-extrabold tracking-widest text-xl text-white">
                 RECTANGLES
             </span>
         </div>
 
         <!-- Contact Email & Symbol (Top Right) -->
-        <div class="flex items-center gap-2 text-xs sm:text-sm text-slate-300">
+        <div class="topbar-contact flex items-center gap-2 text-xs sm:text-sm text-slate-300">
             <i class="fa-solid fa-envelope text-brand-accent"></i>
-            <a href="mailto:rectangles62@gmail.com" class="hover:text-brand-accent transition-colors">rectangles62@gmail.com</a>
+            <a href="mailto:rectangles62@gmail.com" class="topbar-email hover:text-brand-accent transition-colors">rectangles62@gmail.com</a>
         </div>
     </header>
 
@@ -116,8 +162,8 @@
         let dpr = window.devicePixelRatio || 1;
 
         let cells = [];
-        const cols = 4;
-        const rows = 2;
+        let cols = 4;
+        let rows = 2;
 
         let mouse = {
             x: -1000,
@@ -136,6 +182,12 @@
             const container = canvas.parentElement;
             width = container.clientWidth;
             height = container.clientHeight;
+
+            // Desktop: 4 columns x 2 rows.
+            // Mobile: 2 columns x 4 rows.
+            const isMobile = window.matchMedia('(max-width: 640px)').matches;
+            cols = isMobile ? 2 : 4;
+            rows = isMobile ? 4 : 2;
 
             canvas.width = width * dpr;
             canvas.height = height * dpr;
@@ -183,18 +235,20 @@
                 ctx.save();
                 ctx.translate(this.baseX, this.baseY);
 
-                // Subtle interaction field around each fan
+                // Rotation boundary: sized to enclose the full swept
+                // area of the custom propeller blades.
+                const rotationRadius = this.radius * 1.32; // Keep the circle size fixed while the propeller animates.
                 ctx.strokeStyle = `rgba(56, 189, 248, ${this.alpha * 0.55})`;
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
-                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.arc(0, 0, rotationRadius, 0, Math.PI * 2);
                 ctx.stroke();
 
                 // Draw the custom three-blade blue propeller.
                 // The original shape is authored in a 420 x 420 viewBox
                 // and scaled to fit each matrix cell.
                 ctx.rotate(this.rotation);
-                const fanScale = (this.radius * 0.96 / 200) * this.scale;
+                const fanScale = this.radius * 0.96 / 200; // Keep fan size constant during rotation.
                 ctx.scale(fanScale, fanScale);
 
                 const bladePath = () => {
@@ -267,7 +321,11 @@
             cells = [];
             const cellW = width / cols;
             const cellH = height / rows;
-            const fanRadius = Math.min(cellW, cellH) * 0.42;
+
+            // Keep neighboring rotation circles from overlapping.
+            // Each circle is 1.32 × fanRadius, so cap the fan radius
+            // to fit within the smaller half-cell spacing.
+            const fanRadius = Math.min(cellW, cellH) / (2 * 1.32) * 0.94;
 
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < cols; c++) {
